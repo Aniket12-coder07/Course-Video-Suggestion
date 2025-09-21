@@ -1,0 +1,100 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.awt.Desktop;
+import java.net.URI;
+
+public class YouTubeSearchApp extends JFrame {
+
+    private static final String API_KEY = "YOUR_API_KEY"; // 🔑 Replace with your API key
+    private static final String SEARCH_URL = "https://www.googleapis.com/youtube/v3/search";
+
+    private JTextField searchField;
+    private JButton searchButton;
+    private JTextArea resultArea;
+
+    public YouTubeSearchApp() {
+        setTitle("📺 YouTube Course Searcher");
+        setSize(600, 500);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
+
+        // Input panel
+        JPanel topPanel = new JPanel(new BorderLayout());
+        searchField = new JTextField();
+        searchButton = new JButton("Search");
+        topPanel.add(new JLabel("Enter Course Name: "), BorderLayout.WEST);
+        topPanel.add(searchField, BorderLayout.CENTER);
+        topPanel.add(searchButton, BorderLayout.EAST);
+
+        // Results area
+        resultArea = new JTextArea();
+        resultArea.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(resultArea);
+
+        add(topPanel, BorderLayout.NORTH);
+        add(scrollPane, BorderLayout.CENTER);
+
+        // Button action
+        searchButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                String course = searchField.getText().trim();
+                if (!course.isEmpty()) {
+                    try {
+                        searchYouTube(course);
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(null, "❌ Error: " + ex.getMessage());
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(null, "⚠️ Please enter a course name!");
+                }
+            }
+        });
+    }
+
+    private void searchYouTube(String query) throws Exception {
+        String encodedQuery = query.replace(" ", "%20");
+        String urlString = SEARCH_URL + "?part=snippet&type=video&maxResults=5&q=" 
+                + encodedQuery + "&key=" + API_KEY;
+
+        URL url = new URL(urlString);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+
+        BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+        StringBuilder response = new StringBuilder();
+        String line;
+        while ((line = br.readLine()) != null) {
+            response.append(line);
+        }
+        br.close();
+
+        JSONObject json = new JSONObject(response.toString());
+        JSONArray items = json.getJSONArray("items");
+
+        resultArea.setText("📌 Best YouTube Videos for: " + query + "\n\n");
+
+        for (int i = 0; i < items.length(); i++) {
+            JSONObject item = items.getJSONObject(i);
+            String title = item.getJSONObject("snippet").getString("title");
+            String videoId = item.getJSONObject("id").getString("videoId");
+            String urlVideo = "https://www.youtube.com/watch?v=" + videoId;
+
+            resultArea.append((i + 1) + ". " + title + "\n");
+            resultArea.append("   🔗 " + urlVideo + "\n\n");
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            new YouTubeSearchApp().setVisible(true);
+        });
+    }
+}
